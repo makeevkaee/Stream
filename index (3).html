@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101116">
+<title>Stream — прямые эфиры</title>
+<style>
+:root{color-scheme:dark;--bg:#101116;--panel:#191a22;--panel2:#22232d;--line:#30313d;--text:#f5f5f7;--muted:#a3a4b2;--accent:#8b5cf6;--red:#ff4057}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+header{height:72px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid var(--line);background:#14151b;position:sticky;top:0;z-index:5}
+.logo{font-size:23px;font-weight:850;letter-spacing:-1px}.logo span{color:var(--accent)}
+button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;color:white;background:var(--accent);cursor:pointer;transition:.15s}
+button:hover{filter:brightness(1.13)}button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary{background:var(--panel2);border:1px solid var(--line)}button.danger{background:#b9273d}
+main{max-width:1800px;margin:auto;padding:26px 28px 50px}
+.topline{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+h1{font-size:24px;margin:0 0 4px}.sub{color:var(--muted);font-size:13px}
+.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#777}.dot.on{background:#31d18a;box-shadow:0 0 10px #31d18a}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}
+.stream-card{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:transform .16s,border-color .16s}
+.stream-card:hover{transform:translateY(-3px);border-color:#666078}
+.thumb{aspect-ratio:16/9;background:#090a0e;position:relative;display:grid;place-items:center;overflow:hidden}
+.thumb video{width:100%;height:100%;object-fit:cover;background:#090a0e}
+.placeholder{color:#77788a;font-size:38px}
+.live{position:absolute;top:10px;left:10px;background:var(--red);padding:3px 7px;border-radius:5px;font-size:10px;font-weight:900;letter-spacing:.5px}
+.viewers{position:absolute;right:10px;bottom:9px;background:#000b;padding:3px 7px;border-radius:5px;font-size:11px}
+.card-info{padding:11px 12px 13px}.stream-title{font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}.streamer{color:var(--muted);font-size:12px}
+.empty{grid-column:1/-1;border:1px dashed #393a46;border-radius:16px;padding:55px 20px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
+.overlay{display:none;position:fixed;inset:0;background:#000b;z-index:20;align-items:center;justify-content:center;padding:18px}.overlay.show{display:flex}
+.modal{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;max-height:92vh;overflow:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.modal h2{font-size:20px;margin:0}
+.close{background:transparent;color:var(--muted);font-size:23px;padding:0 6px}
+label{display:block;font-size:13px;color:var(--muted);margin:13px 0 6px}
+input{width:100%;padding:12px;background:#101116;border:1px solid var(--line);border-radius:9px;color:white;font:inherit}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px}.hint{color:var(--muted);font-size:12px;margin-top:13px}
+#playerOverlay{padding:0;background:#08090c}
+.player-shell{width:min(1200px,100%);background:#11121a;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.player-video{aspect-ratio:16/9;background:#050507;display:grid;place-items:center;position:relative}
+.player-video video{width:100%;height:100%;object-fit:contain}
+.player-controls{display:flex;align-items:center;gap:8px;padding:12px 14px;flex-wrap:wrap}
+.player-name{font-weight:750;margin-right:auto}
+.player-controls button{padding:8px 11px}
+#localPreview{width:100%;aspect-ratio:16/9;object-fit:contain;background:#050507;border-radius:10px;margin-top:14px}
+.hidden{display:none!important}
+footer{color:#777887;text-align:center;font-size:12px;padding:24px}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:700px){header{height:62px;padding:0 14px}.logo{font-size:20px}header button{padding:9px 11px;font-size:12px}main{padding:19px 12px 35px}.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.card-info{padding:8px}.stream-title{font-size:12px}.streamer{font-size:10px}.topline{align-items:flex-start}h1{font-size:20px}.sub{font-size:11px}.status{font-size:11px}}
+@media(max-width:390px){.grid{gap:6px}.card-info{padding:7px}.stream-title{font-size:11px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Stream<span>.</span></div>
+  <button id="startBtn">＋ Начать стрим</button>
+</header>
+<main>
+  <div class="topline">
+    <div><h1>Прямые трансляции</h1><div class="sub">Смотри эфиры других пользователей в реальном времени</div></div>
+    <div class="status"><span class="dot" id="connectionDot"></span><span id="connectionText">Подключение…</span></div>
+  </div>
+  <section class="grid" id="streamGrid">
+    <div class="empty"><strong>Загружаем эфиры…</strong>Подключаемся к серверу трансляций.</div>
+  </section>
+</main>
+<footer>Stream · Прямые эфиры без регистрации</footer>
+
+<div class="overlay" id="setupOverlay">
+ <div class="modal">
+  <div class="modal-head"><h2>Начать трансляцию</h2><button class="close" data-close="setupOverlay">×</button></div>
+  <label for="streamTitle">Название стрима</label><input id="streamTitle" maxlength="70" placeholder="Например: Играем вместе">
+  <label for="nickname">Твоё имя</label><input id="nickname" maxlength="24" placeholder="Гость">
+  <div class="actions">
+   <button id="cameraBtn">Стримить с камеры</button>
+   <button class="secondary" id="screenBtn">Показать экран</button>
+  </div>
+  <div class="hint">Браузер попросит разрешение на камеру или демонстрацию экрана. Имя гостя сохраняется только в этом браузере.</div>
+  <video id="localPreview" autoplay muted playsinline class="hidden"></video>
+  <div class="actions hidden" id="liveActions"><button class="danger" id="stopBtn">Завершить стрим</button></div>
+ </div>
+</div>
+
+<div class="overlay" id="playerOverlay">
+ <div class="player-shell">
+  <div class="player-video" id="playerVideoWrap"><video id="remoteVideo" autoplay playsinline></video></div>
+  <div class="player-controls"><div class="player-name" id="playerName">Трансляция</div><button class="secondary" id="shrinkBtn">− Уменьшить</button><button class="secondary" id="growBtn">＋ Увеличить</button><button class="secondary" id="fullBtn">⛶ На весь экран</button><button class="secondary" id="closePlayer">Закрыть</button></div>
+ </div>
+</div>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+// Вставь сюда URL и anon key своего проекта Supabase.
+const SUPABASE_URL = 'ВСТАВЬ_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'ВСТАВЬ_SUPABASE_ANON_KEY';
+
+const $ = id => document.getElementById(id);
+const grid = $('streamGrid');
+const guestId = localStorage.getItem('stream_guest_id') || crypto.randomUUID();
+localStorage.setItem('stream_guest_id', guestId);
+let guestName = localStorage.getItem('stream_guest_name') || 'Гость-' + guestId.slice(0,4);
+let supabase, lobby, localStream = null, myStreamId = null, signalChannel = null;
+let isPublishing = false, currentViewer = null, viewerPc = null;
+const publisherPeers = new Map();
+const streams = new Map();
+const pcs = new Map();
+const rtcConfig = {iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+
+function setConnection(ok, text){$('connectionDot').classList.toggle('on',ok);$('connectionText').textContent=text}
+function show(id){$(id).classList.add('show')}
+function hide(id){$(id).classList.remove('show')}
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide(b.dataset.close));
+$('startBtn').onclick=()=>{ $('nickname').value=guestName; show('setupOverlay') };
+
+function renderStreams(){
+  const items=[...streams.values()].filter(s=>s.id!==myStreamId);
+  if(!items.length){grid.innerHTML='<div class="empty"><strong>Пока нет активных стримов</strong>Будь первым, кто начнёт трансляцию.</div>';return}
+  grid.innerHTML='';
+  for(const s of items){
+    const card=document.createElement('article');card.className='stream-card';
+    const thumb=document.createElement('div');thumb.className='thumb';
+    thumb.innerHTML='<div class="placeholder">▶</div><span class="live">LIVE</span><span class="viewers">● Эфир</span>';
+    const info=document.createElement('div');info.className='card-info';
+    const title=document.createElement('div');title.className='stream-title';title.textContent=s.title||'Без названия';
+    const name=document.createElement('div');name.className='streamer';name.textContent=s.name||'Гость';
+    info.append(title,name);card.append(thumb,info);card.onclick=()=>watchStream(s);grid.append(card);
+  }
+}
+
+async function connect(){
+  if(SUPABASE_URL.startsWith('ВСТАВЬ_')||SUPABASE_ANON_KEY.startsWith('ВСТАВЬ_')){
+    setConnection(false,'Нужна настройка Supabase');
+    grid.innerHTML='<div class="empty"><strong>Остался один шаг</strong>Добавь URL и anon key проекта Supabase в код сайта. Инструкция находится в файле README ниже.</div>';
+    return;
+  }
+  supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  lobby=supabase.channel('stream-lobby',{config:{presence:{key:guestId},broadcast:{self:false}}});
+  lobby.on('presence',{event:'sync'},syncPresence);
+  lobby.subscribe(async status=>{
+    if(status==='SUBSCRIBED'){setConnection(true,'В сети');if(isPublishing)await publishPresence()}
+    else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT')setConnection(false,'Нет соединения');
+  });
+}
+function syncPresence(){
+  if(!lobby)return;
+  const state=lobby.presenceState();streams.clear();
+  for(const [key,entries] of Object.entries(state)){
+    const p=entries[entries.length-1];
+    if(p?.streamId)streams.set(p.streamId,{id:p.streamId,name:p.name,title:p.title,owner:key});
+  }
+  renderStreams();
+}
+async function publishPresence(){
+  if(!isPublishing||!lobby)return;
+  await lobby.track({streamId:myStreamId,name:guestName,title:$('streamTitle').value.trim()||'Прямой эфир',startedAt:Date.now()});
+}
+async function startBroadcast(kind){
+  if(!supabase){alert('Сначала настрой Supabase в коде сайта.');return}
+  try{
+    guestName=$('nickname').value.trim()||guestName;
+    localStorage.setItem('stream_guest_name',guestName);
+    localStream=kind==='screen'?await navigator.mediaDevices.getDisplayMedia({video:true,audio:true}):await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+    myStreamId=crypto.randomUUID();isPublishing=true;
+    $('localPreview').srcObject=localStream;$('localPreview').classList.remove('hidden');
+    $('liveActions').classList.remove('hidden');$('cameraBtn').classList.add('hidden');$('screenBtn').classList.add('hidden');
+    signalChannel=supabase.channel('stream-signal-'+myStreamId,{config:{broadcast:{self:false}}});
+    signalChannel.on('broadcast',{event:'signal'},({payload})=>handlePublisherSignal(payload));
+    await signalChannel.subscribe();
+    await publishPresence();
+    localStream.getVideoTracks()[0]?.addEventListener('ended',stopBroadcast);
+    $('startBtn').textContent='● В эфире';$('startBtn').disabled=true;
+    setConnection(true,'Ты в эфире');renderStreams();
+  }catch(e){console.error(e);alert('Не удалось начать трансляцию: '+e.message)}
+}
+async function sendSignal(channel,payload){try{await channel.send({type:'broadcast',event:'signal',payload})}catch(e){console.error(e)}}
+async function handlePublisherSignal(p){
+  if(!p||p.to!==guestId)return;
+  if(p.type==='offer'){
+    const old=publisherPeers.get(p.from);if(old)old.close();
+    const pc=new RTCPeerConnection(rtcConfig);publisherPeers.set(p.from,pc);
+    localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+    pc.onicecandidate=e=>{if(e.candidate)sendSignal(signalChannel,{type:'candidate',from:guestId,to:p.from,candidate:e.candidate})};
+    await pc.setRemoteDescription(p.sdp);
+    const answer=await pc.createAnswer();await pc.setLocalDescription(answer);
+    await sendSignal(signalChannel,{type:'answer',from:guestId,to:p.from,sdp:pc.localDescription});
+  }else if(p.type==='candidate'){
+    const pc=publisherPeers.get(p.from);if(pc)try{await pc.addIceCandidate(p.candidate)}catch(e){console.warn(e)}
+  }else if(p.type==='bye'){
+    publisherPeers.get(p.from)?.close();publisherPeers.delete(p.from);
+  }
+}
+async function stopBroadcast(){
+  if(!isPublishing)return;
+  isPublishing=false;
+  for(const pc of publisherPeers.values())pc.close();publisherPeers.clear();
+  if(lobby)await lobby.untrack();
+  if(signalChannel){await supabase.removeChannel(signalChannel);signalChannel=null}
+  localStream?.getTracks().forEach(t=>t.stop());localStream=null;myStreamId=null;
+  $('localPreview').srcObject=null;$('localPreview').classList.add('hidden');
+  $('liveActions').classList.add('hidden');$('cameraBtn').classList.remove('hidden');$('screenBtn').classList.remove('hidden');
+  $('startBtn').textContent='＋ Начать стрим';$('startBtn').disabled=false;
+  setConnection(true,'В сети');renderStreams();
+}
+$('cameraBtn').onclick=()=>startBroadcast('camera');
+$('screenBtn').onclick=()=>startBroadcast('screen');
+$('stopBtn').onclick=stopBroadcast;
+
+async function watchStream(s){
+  if(!supabase)return;
+  closeViewer();currentViewer=s;
+  $('playerName').textContent=(s.title||'Прямой эфир')+' · '+(s.name||'Гость');
+  $('remoteVideo').srcObject=null;show('playerOverlay');
+  const channel=supabase.channel('stream-signal-'+s.id,{config:{broadcast:{self:false}}});
+  viewerPc=new RTCPeerConnection(rtcConfig);pcs.set(s.id,viewerPc);
+  viewerPc.addTransceiver('video',{direction:'recvonly'});viewerPc.addTransceiver('audio',{direction:'recvonly'});
+  viewerPc.ontrack=e=>{const v=$('remoteVideo');if(e.streams[0])v.srcObject=e.streams[0]};
+  viewerPc.onicecandidate=e=>{if(e.candidate)sendSignal(channel,{type:'candidate',from:guestId,to:s.owner,candidate:e.candidate})};
+  channel.on('broadcast',{event:'signal'},async({payload:p})=>{
+    if(p.to!==guestId)return;
+    if(p.type==='answer'&&viewerPc)await viewerPc.setRemoteDescription(p.sdp);
+    if(p.type==='candidate'&&viewerPc)try{await viewerPc.addIceCandidate(p.candidate)}catch(e){console.warn(e)}
+  });
+  await channel.subscribe(async status=>{
+    if(status==='SUBSCRIBED'){
+      const offer=await viewerPc.createOffer();await viewerPc.setLocalDescription(offer);
+      await sendSignal(channel,{type:'offer',from:guestId,to:s.owner,sdp:viewerPc.localDescription});
+    }
+  });
+  currentViewer.channel=channel;
+}
+async function closeViewer(){
+  if(currentViewer?.channel)await sendSignal(currentViewer.channel,{type:'bye',from:guestId,to:currentViewer.owner});
+  if(currentViewer?.channel&&supabase)await supabase.removeChannel(currentViewer.channel);
+  viewerPc?.close();viewerPc=null;
+  if(currentViewer)pcs.delete(currentViewer.id);
+  currentViewer=null;$('remoteVideo').srcObject=null;
+}
+$('closePlayer').onclick=async()=>{await closeViewer();hide('playerOverlay')};
+$('playerOverlay').addEventListener('click',e=>{if(e.target===$('playerOverlay'))$('closePlayer').click()});
+$('growBtn').onclick=()=>{$('playerVideoWrap').style.maxHeight='85vh';$('playerVideoWrap').style.width='100%'};
+$('shrinkBtn').onclick=()=>{$('playerVideoWrap').style.maxHeight='55vh';$('playerVideoWrap').style.width='75%'};
+$('fullBtn').onclick=()=>{const el=$('playerVideoWrap');if(el.requestFullscreen)el.requestFullscreen()};
+window.addEventListener('beforeunload',()=>{localStream?.getTracks().forEach(t=>t.stop());viewerPc?.close()});
+connect();
+</script>
+</body>
+</html>
